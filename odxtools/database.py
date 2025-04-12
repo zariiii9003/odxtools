@@ -49,21 +49,22 @@ class Database:
             pdx_zip = pdx_file
         else:
             pdx_zip = ZipFile(pdx_file)
-        for zip_member in pdx_zip.namelist():
+
+        index_root = ElementTree.parse(pdx_zip.open("index.xml")).getroot()
+        db_short_name = odxrequire(index_root.findtext("SHORT-NAME"))
+        self.short_name = db_short_name
+
+        for file_et in index_root.iterfind("ABLOCKS/ABLOCK/FILES/FILE"):
+            relpath = odxrequire(file_et.text)
             # The name of ODX files can end with .odx, .odx-d,
             # .odx-c, .odx-cs, .odx-e, .odx-f, .odx-fd, .odx-m,
             # .odx-v .  We could test for all that, or just make
             # sure that the file's suffix starts with .odx
-            p = Path(zip_member)
-            if p.suffix.lower().startswith(".odx"):
-                root = ElementTree.parse(pdx_zip.open(zip_member)).getroot()
+            if Path(relpath).suffix.lower().startswith(".odx"):
+                root = ElementTree.parse(pdx_zip.open(relpath)).getroot()
                 self._process_xml_tree(root)
-            elif p.name.lower() == "index.xml":
-                root = ElementTree.parse(pdx_zip.open(zip_member)).getroot()
-                db_short_name = odxrequire(root.findtext("SHORT-NAME"))
-                self.short_name = db_short_name
             else:
-                self.add_auxiliary_file(zip_member, pdx_zip.open(zip_member))
+                self.add_auxiliary_file(relpath, pdx_zip.open(relpath))
 
     def add_odx_file(self, odx_file_name: Union[str, "PathLike[Any]"]) -> None:
         self._process_xml_tree(ElementTree.parse(odx_file_name).getroot())
