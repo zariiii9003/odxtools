@@ -6,7 +6,7 @@ import asyncio
 import sys
 from typing import Any
 
-import can
+import can.cli
 
 import odxtools.isotp_state_machine as ism
 import odxtools.uds as uds
@@ -126,7 +126,7 @@ def init_verbose_state_machine(BaseClass: type[IsoTpStateMachine], *args: Any,
 async def active_main(args: argparse.Namespace) -> None:
     global ecu_rx_id, ecu_tx_id
 
-    can_bus = can.Bus(channel=args.channel, bustype="socketcan")
+    can_bus = can.cli.create_bus_from_namespace(args)
 
     ecu_rx_id = int(args.rx, 0)
     ecu_tx_id = int(args.tx, 0)
@@ -154,7 +154,7 @@ async def passive_main(args: argparse.Namespace) -> None:
 
     if args.channel:
         # decode a "real" bus
-        can_bus = can.Bus(channel=args.channel, bustype="socketcan")
+        can_bus = can.cli.create_bus_from_namespace(args)
 
         print(f"Decoding messages on channel {args.channel}")
         async for telegram_id, payload in isotp_decoder.read_telegrams(can_bus):
@@ -175,12 +175,6 @@ def add_cli_arguments(parser: argparse.ArgumentParser) -> None:
         const=True,
         required=False,
         help="Active mode, sends flow control messages to receive ISO-TP telegrams successfully",
-    )
-    parser.add_argument(
-        "--channel",
-        "-c",
-        default=None,
-        help="CAN interface name to be used (required in active mode)",
     )
     parser.add_argument(
         "--rx",
@@ -211,6 +205,8 @@ def add_cli_arguments(parser: argparse.ArgumentParser) -> None:
         help="Name of the protocol used for decoding",
     )
     _parser_utils.add_pdx_argument(parser)
+
+    can.cli.add_bus_arguments(parser, group_title="Bus arguments (python-can)")
 
 
 def add_subparser(subparsers: SubparsersList) -> None:
